@@ -1,0 +1,114 @@
+<?php
+
+/**
+ * 
+ * @file WAF User Resource module - methods for WAF SSO webservices for Services 7.x-3.x
+ * 
+ * @see https://itvplc.jira.com/wiki/display/PROJECTS/Specification+of+SSO+API+for+trusted+third-parties
+ * 
+ */
+
+define('WAF_API_ERROR_USER_ID_NOT_FOUND', 'INVALID_USER');
+define('WAF_API_ERROR_BAD_USER_CREDENTIALS', 'INVALID_USER');
+define('WAF_API_ERROR_INVALID_REQUEST', 'INVALID_REQUEST');
+define('WAF_API_ERROR_INVALID_DIGEST', 'INVALID_DIGEST');
+define('WAF_API_ERROR_INTERNAL_ERROR', 'INTERNAL_ERROR');
+
+/** 
+ * Implements hook_services_resources().
+ * @return array methods definition
+ */
+function waf_user_resource_services_resources() {
+  module_load_include('inc', 'waf_user_resource', 'includes/waf_user_resource');
+  return _waf_user_resource_definition();
+}
+
+/**
+ * Implements hook_rest_server_request_parsers_alter().
+ */
+function waf_user_resource_rest_server_request_parsers_alter(&$parsers) {
+  $parsers['application/xml'] = 'waf_user_resource_parse_xml_stream';
+}
+
+/**
+ * Callback for parsing a stream
+ *
+ * @param resource $stream
+ * @return array
+ *
+ */
+function waf_user_resource_parse_xml_stream($stream) {
+  return waf_user_resource_parse_xml(RESTServer::contentFromStream($stream));
+}
+
+/** 
+ * Parse the XML into an object that REST server can use
+ *
+ * @param type $xml
+ * @return object object representation of the xml 
+ */
+function waf_user_resource_parse_xml($xml) {
+  $output = simplexml_load_string($xml);
+  return $output;
+}
+
+/** 
+ * Render WAF format XML for request or response
+ * 
+ * @see rest_server.views.inc
+ * @param $data
+ * @param string $root_tag
+ * @return string
+ */
+function waf_user_resource_render_xml($data, $root_tag = NULL) {
+  // simpler but maybe not as good?
+  $doc = new DOMDocument('1.0', 'utf-8');
+  if (!empty($root_tag)) {
+    $root = $doc->createElement($root_tag);
+    $doc->appendChild($root);
+    xml_recurse($doc, $root, $data);
+  }
+  else {
+    xml_recurse($doc, $doc, $data);
+  }
+  return $doc->saveXML();
+  watchdog('waf_user_resource', 'waf_user_resource_render_xml complete');
+}
+
+/** 
+ * Recursive function that uses a DOMDocument to create and XML tree from an object from REST server
+ *
+ * @param type $doc
+ * @param type $parent
+ * @param type $data 
+ */
+function xml_recurse(&$doc, &$parent, $data) {
+  if (is_object($data)) {
+    $data = get_object_vars($data);
+  }
+
+  if (is_array($data)) {
+    $assoc = FALSE || empty($data);
+    foreach ($data as $key => $value) {
+      if (is_numeric($key)) {
+        $key = 'item';
+      }
+      else {
+        $assoc = TRUE;
+        $key = preg_replace('/[^A-Za-z0-9_]/', '_', $key);
+        $key = preg_replace('/^([0-9]+)/', '_$1', $key);
+      }
+      $element = $doc->createElement($key);
+      $parent->appendChild($element);
+      xml_recurse($doc, $element, $value);
+    }
+
+    if (!$assoc) {
+      $parent->setAttribute('is_array', 'true');
+    }
+  }
+  elseif ($data !== NULL) {
+    $parent->appendChild($doc->createTextNode($data));
+  }
+}
+

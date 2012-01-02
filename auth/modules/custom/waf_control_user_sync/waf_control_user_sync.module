@@ -1,0 +1,49 @@
+<?php
+
+/**
+ * @file Implementation of Irdeto Control User synchronisation
+ * @see https://itvplc.jira.com/wiki/download/attachments/7246548/2011-11-04+Control+API+Reference+r1.1.pdf?version=1&modificationDate=1321010295385
+ */
+
+/**
+ * Implementation of hook_init
+ */
+function waf_control_user_sync_init() {
+  // Load classes
+  require_once libraries_get_path('WAFControl') . '/classes/WafBase.class.php';
+  require_once libraries_get_path('WAFControl') . '/classes/WafXml.class.php';
+  require_once libraries_get_path('WAFControl') . '/classes/WafXmlSimplexml.class.php';
+  require_once libraries_get_path('WAFControl') . '/classes/WafControl.class.php';
+  require_once libraries_get_path('WAFControl') . '/classes/WafControlUsers.class.php';
+}
+
+
+/**
+ * Register a user with Irdeto
+ * 2.35  REGISTERUSER - SERVER POST 
+ * 
+ * @param $user_id SSO ID of the user
+ */
+function waf_control_user_sync_register($user_id) {
+  $crmid = variable_get('waf_control_crmid', 'itv');
+  $waf_control = new WafControlUsers();
+  $response = $waf_control->registerUser($user_id, $crmid);
+  wdd($response, 'waf_control_user_sync_register');
+  return($response);
+  
+}
+
+/**
+ * Delete a user with Irdeto
+ * 2.47  USERDELETE - SERVER GET 
+ * 
+ * @param $user_id SSO ID of the user
+ */
+function waf_control_user_sync_delete($user_id) {
+  $params = array();
+  $crmid = variable_get('waf_control_crmid', 'itv');
+  $waf_control = new WafControlUsers();
+  $response = $waf_control->deleteUser($user_id, $crmid);
+  wdd($response, 'waf_control_user_sync_delete');
+  return ($response);
+}

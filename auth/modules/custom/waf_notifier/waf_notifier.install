@@ -1,0 +1,16 @@
+<?php
+/**
+ * @file
+ * Installation file for the WAF Notifier module.
+ */
+
+
+/**
+ * Implements hook_install().
+ */
+function waf_client_install() {
+
+  //create the notifier queue
+  $queue = DrupalQueue::get('notifier_queue');
+  $queue->createQueue();
+}

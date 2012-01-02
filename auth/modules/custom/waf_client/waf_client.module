@@ -1,0 +1,223 @@
+<?php
+/**
+ * @file
+ * Main module file for the WAF Client project.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function waf_client_menu() {
+  $items['admin/config/system/waf_client'] = array(
+    'title' => 'WAF Client Settings',
+    'description' => 'Client site settings for WAF SSO.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('waf_client_settings_view'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'waf_client.settings.inc',
+  );
+  $items['admin/config/system/waf_client/list'] = array(
+    'title' => 'List',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+  $items['admin/config/system/waf_client/add'] = array(
+    'title' => 'Add site setting',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('waf_client_settings'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_LOCAL_ACTION,
+    'file' => 'waf_client.settings.inc',
+  );
+  $items['admin/config/system/waf_client/manage/%waf_client_client'] = array(
+    'title' => 'Edit site setting',
+    'title callback' => 'waf_client_page_title',
+    'title arguments' => array(5),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('waf_client_settings', 5),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'waf_client.settings.inc',
+  );
+  $items['admin/config/system/waf_client/manage/%waf_client_client/edit'] = array(
+    'title' => 'Edit',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+  $items['admin/config/system/waf_client/manage/%waf_client_client/delete'] = array(
+    'title' => 'Delete',
+    'page arguments' => array('waf_client_settings_delete', 5),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'waf_client.settings.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_modules_enabled().
+ */
+function waf_client_modules_enabled($modules) {
+  waf_client_site_settings_reset();
+}
+
+/**
+ * Implements hook_modules_disabled().
+ */
+function waf_client_modules_disabled($modules) {
+  waf_client_site_settings_reset();
+}
+
+/**
+ * Page Title callback for edit site settings pages.
+ */
+function waf_client_page_title($client_settings) {
+  return t('Edit site !name settings', array('!name' => $client_settings->service_name));
+}
+
+/**
+ * Load a given client.
+ *
+ * @param string $machine_name
+ * @return array
+ */
+function waf_client_client_load($service_name = NULL) {
+  // Something has gone wrong, return nothing.
+  if (!$service_name || !is_string($service_name)) {
+    return NULL;
+  }
+  $clients = waf_client_get_clients();
+  return isset($clients[$service_name]) ? $clients[$service_name] : FALSE;
+}
+
+/**
+ * Get a list of the clients on auth.itv.com
+ * we also cache this data as we might be doing this a lot.
+ *
+ * @param string $service_name
+ * The clients service_name
+ *
+ * @return
+ * shared secret
+ */
+function waf_client_get_clients() {
+  // Clients array.
+  $clients = &drupal_static(__FUNCTION__, array());
+
+  // See if the clients are in the static cache.
+  if (!empty($clients)) {
+    return $clients;
+  }
+  // See if the clients are in the cache_get cache.
+  $cache = cache_get('waf_client_settings');
+  if (isset($cache->data)) {
+    $clients = $cache->data;
+  }
+  // Ok they're not in the cache lets reload.
+  else {
+    $results = db_select('waf_client_settings', 'waf')
+      ->fields('waf', drupal_schema_fields_sql('waf_client_settings'))
+      ->execute();
+    // Organise the client row objects into a associative array
+    // based on the clients machine_name.
+    foreach ($results as $result) {
+      $clients[$result->service_name] = $result;
+    }
+    // Add them to the cache.
+    cache_set('waf_client_settings', $clients);
+  }
+
+  return $clients;
+}
+
+/**
+ * Resets WAF Client setting caches.
+ */
+function waf_client_site_settings_reset() {
+  cache_clear_all('waf_client_settings', 'cache', TRUE);
+  drupal_static_reset('waf_client_get_clients');
+}
+
+/**
+ * Implements hook_features_api().
+ */
+function waf_client_features_api() {
+  return array(
+    'waf_client' => array(
+      'name' => t('WAF Clients'),
+      'default_hook' => 'waf_client_default_settings',
+      'default_file' => FEATURES_DEFAULTS_INCLUDED,
+      'default_filename' => 'waf_client',
+      'features_source' => TRUE,
+    ),
+  );
+}
+
+/**
+ * Implements hook_features_export().
+ */
+function waf_client_features_export($data, &$export, $module_name = '') {
+  $export['dependencies']['waf_client'] = 'waf_client';
+
+  foreach (waf_client_get_clients() as $service_name => $setting) {
+    if (in_array($service_name, $data)) {
+      $export['features']['waf_client'][$service_name] = $service_name;
+    }
+  }
+
+  return array();
+}
+
+/**
+ * Implements hook_features_export_options().
+ */
+function waf_client_features_export_options() {
+  $settings = array();
+  foreach (waf_client_get_clients() as $service_name => $setting) {
+    $settings[$service_name] = $setting->service_name;
+  }
+
+  return $settings;
+}
+
+/**
+ * Implements hook_features_export_render().
+ */
+function waf_client_features_export_render($module, $data) {
+  $code = array();
+  $code[] = '  $export = array();';
+  $code[] = '';
+
+  foreach ($data as $service_name) {
+    if ($setting = waf_client_client_load($service_name)) {
+      unset($setting->service_name);
+      $waf_client_identifier = features_var_export($service_name);
+      $waf_client_export = features_var_export($setting, '  ');
+      $code[] = "  // Exported WAF Client setting: {$service_name}";
+      $code[] = "  \$export[{$waf_client_identifier}] = {$waf_client_export};";
+      $code[] = '';
+    }
+  }
+
+  $code[] = '  return $export;';
+  $code = implode("\n", $code);
+  return array('waf_client_default_settings' => $code);
+}
+
+/**
+ * Implements hook_features_revert().
+ */
+function waf_client_features_revert($module) {
+  waf_client_features_rebuild($module);
+}
+
+/**
+ * Implements hook_features_rebuild().
+ */
+function waf_client_features_rebuild($module) {
+  if ($defaults = features_get_default('waf_client', $module)) {
+    db_truncate('waf_client_settings')->execute();
+    foreach ($defaults as $service_name => $setting) {
+      $setting['service_name'] = $service_name;
+      drupal_write_record('waf_client_settings', $setting);
+    }
+  }
+}

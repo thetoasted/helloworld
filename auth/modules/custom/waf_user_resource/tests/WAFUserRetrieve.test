@@ -1,0 +1,37 @@
+<?php
+// $Id: 
+/**
+ * @file
+ * WAF User Retrieve Service test
+ * Call the endpoint tests when no authentication is being used.
+ *
+ */
+
+/**
+ * Run test cases for the endpoint with no authentication turned on.
+ *
+ */
+class WAFUserRetrieveTest extends ServicesResourceWAFUsertests {
+  /**
+   * Implementation of getInfo().
+   */
+  public static function getInfo() {
+   return array(
+     'name'        => t('WAF Services User Retrieve'),
+     'description' => t('Test the WAF user resource retrieve.'),
+     'group'       => t('WAF'),
+   );
+  }
+
+  public function setUp() {
+    parent::setUp();
+  }
+  /**
+   * Test retrieve method.
+   */
+
+  public function testRetrieveUser() {
+    parent::waftestRetrieveUser();
+  }
+
+}

@@ -1,0 +1,5 @@
+name = WAF Notifier
+description =  Notify registered services that users have been updated
+version = 7.x-dev
+package = WAF
+core = 7.x
