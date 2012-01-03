@@ -1,7 +1,0 @@
-<?php
-/**
- * @file
- * Code for the WAF User Service Feature feature.
- */
-
-include_once('waf_user_service_feature.features.inc');

@@ -1,6 +1,0 @@
-name = WAF Client module
-description = "Provides vendor settings for WAF"
-package = WAF
-core = 7.x
-configure = admin/config/system/waf_client
-dependencies[] = waf_api

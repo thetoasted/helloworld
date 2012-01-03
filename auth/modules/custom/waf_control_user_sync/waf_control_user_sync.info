@@ -1,5 +1,0 @@
-name = WAF Control User Sync
-description =  Register and delete users on Irdeto Control
-version = 7.x-dev
-package = WAF
-core = 7.x

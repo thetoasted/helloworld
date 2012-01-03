@@ -1,7 +1,0 @@
-<?php
-/**
- * @file
- * Code for the WAF Entitlements Server Feature feature.
- */
-
-include_once('waf_entitlements_server_feature.features.inc');

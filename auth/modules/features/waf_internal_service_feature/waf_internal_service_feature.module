@@ -1,7 +1,0 @@
-<?php
-/**
- * @file
- * Code for the WAF Internal Service Feature feature.
- */
-
-include_once('waf_internal_service_feature.features.inc');
